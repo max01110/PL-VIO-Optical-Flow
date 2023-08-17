@@ -27,34 +27,34 @@ void reduceVector(vector<int> &v, vector<uchar> status);
 
 class FeatureTracker
 {
-  public:
-    FeatureTracker();
+public:
+  FeatureTracker();
 
-    void readImage(const cv::Mat &_img);
+  void readImage(const cv::Mat &_img);
 
-    void setMask();
+  void setMask();
 
-    void addPoints();
+  void addPoints();
 
-    bool updateID(unsigned int i);
+  bool updateID(unsigned int i);
 
-    void readIntrinsicParameter(const string &calib_file);
+  void readIntrinsicParameter(const string &calib_file);
 
-    void showUndistortion(const string &name);
-    void showUndistortion();
+  void showUndistortion(const string &name);
+  void showUndistortion();
 
-    void rejectWithF();
+  void rejectWithF();
 
-    vector<cv::Point2f> undistortedPoints();
+  vector<cv::Point2f> undistortedPoints();
 
-    cv::Mat mask;
-    cv::Mat fisheye_mask;
-    cv::Mat prev_img, cur_img, forw_img; //  prev : i-1 时刻，  cur: i 时刻， forw： i+1时刻
-    vector<cv::Point2f> n_pts;
-    vector<cv::Point2f> prev_pts, cur_pts, forw_pts;
-    vector<int> ids;                     //  每个特征点的id
-    vector<int> track_cnt;               //  记录某个特征已经跟踪多少帧了，即被多少帧看到了
-    camodocal::CameraPtr m_camera;
+  cv::Mat mask;
+  cv::Mat fisheye_mask;
+  cv::Mat prev_img, cur_img, forw_img; //  prev : i-1 时刻，  cur: i 时刻， forw： i+1时刻
+  vector<cv::Point2f> n_pts;
+  vector<cv::Point2f> prev_pts, cur_pts, forw_pts;
+  vector<int> ids;       //  The id of each feature point
+  vector<int> track_cnt; //  Record how many frames a feature has tracked, that is, how many frames have seen the id
+  camodocal::CameraPtr m_camera;
 
-    static int n_id;
+  static int n_id;
 };

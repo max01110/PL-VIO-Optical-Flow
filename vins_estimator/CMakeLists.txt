@@ -4,7 +4,7 @@ project(plvio_estimator)
 set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_FLAGS "-std=c++11")
 #-DEIGEN_USE_MKL_ALL")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wno-dev -Wall -g")
 
 find_package(catkin REQUIRED COMPONENTS
     roscpp
@@ -15,10 +15,14 @@ find_package(catkin REQUIRED COMPONENTS
     cv_bridge
     camera_model
     )
+find_package(OpenCV 4 REQUIRED)
 
-find_package(OpenCV REQUIRED)
 
 find_package(Ceres REQUIRED)
+if(Ceres_Found)
+message("ceres found!")
+endif()
+
 
 include_directories(${catkin_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS})
 
@@ -27,7 +31,10 @@ find_package(Eigen3  REQUIRED)
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
+  ${Ceres_INCLUDE_DIR}
 )
+
+
 
 catkin_package()
 

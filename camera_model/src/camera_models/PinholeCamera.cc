@@ -732,13 +732,14 @@ PinholeCamera::initUndistortRectifyMap(cv::Mat& map1, cv::Mat& map2,
                                        float cx, float cy,
                                        cv::Mat rmat) const
 {
+
     if (imageSize == cv::Size(0, 0))
     {
         imageSize = cv::Size(mParameters.imageWidth(), mParameters.imageHeight());
     }
 
-    cv::Mat mapX = cv::Mat::zeros(imageSize.height, imageSize.width, CV_32F);
-    cv::Mat mapY = cv::Mat::zeros(imageSize.height, imageSize.width, CV_32F);
+    cv::Mat mapX = cv::Mat::zeros(480, 752, CV_32F);
+    cv::Mat mapY = cv::Mat::zeros(480, 752, CV_32F);
 
     Eigen::Matrix3f R, R_inv;
     cv::cv2eigen(rmat, R);
@@ -749,8 +750,8 @@ PinholeCamera::initUndistortRectifyMap(cv::Mat& map1, cv::Mat& map2,
 
     if (cx == -1.0f || cy == -1.0f)
     {
-        K_rect << fx, 0, imageSize.width / 2,
-                  0, fy, imageSize.height / 2,
+        K_rect << fx, 0, 752 / 2,
+                  0, fy, 480 / 2,
                   0, 0, 1;
     }
     else
@@ -768,9 +769,9 @@ PinholeCamera::initUndistortRectifyMap(cv::Mat& map1, cv::Mat& map2,
 
     Eigen::Matrix3f K_rect_inv = K_rect.inverse();
 
-    for (int v = 0; v < imageSize.height; ++v)
+    for (int v = 0; v < 480; ++v)
     {
-        for (int u = 0; u < imageSize.width; ++u)
+        for (int u = 0; u < 752; ++u)
         {
             Eigen::Vector3f xo;
             xo << u, v, 1;

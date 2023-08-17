@@ -14,6 +14,10 @@
 
 #include <opencv2/line_descriptor.hpp>
 #include <opencv2/features2d.hpp>
+#include "opencv2/imgproc.hpp"
+#include "opencv2/ximgproc.hpp"
+#include "opencv2/imgcodecs.hpp"
+#include "opencv2/highgui.hpp"
 
 using namespace cv::line_descriptor;
 using namespace std;
@@ -22,31 +26,39 @@ using namespace camodocal;
 
 struct Line
 {
-	Point2f StartPt;
-	Point2f EndPt;
-	float lineWidth;
-	Point2f Vp;
+    Point2f StartPt;
+    Point2f EndPt;
+    float lineWidth;
+    Point2f Vp;
 
-	Point2f Center;
-	Point2f unitDir; // [cos(theta), sin(theta)]
-	float length;
-	float theta;
+    Point2f Center;
+    Point2f unitDir; // [cos(theta), sin(theta)]
+    float length;
+    float theta;
 
-	// para_a * x + para_b * y + c = 0
-	float para_a;
-	float para_b;
-	float para_c;
+    // para_a * x + para_b * y + c = 0
+    float para_a;
+    float para_b;
+    float para_c;
 
-	float image_dx;
-	float image_dy;
+    float image_dx;
+    float image_dy;
     float line_grad_avg;
 
-	float xMin;
-	float xMax;
-	float yMin;
-	float yMax;
-	unsigned short id;
-	int colorIdx;
+    float xMin;
+    float xMax;
+    float yMin;
+    float yMax;
+    unsigned short id;
+    int colorIdx;
+};
+
+struct Line2D
+{
+    cv::Point2f startPixelCoord; // uv
+    cv::Point2f endPixelCoord;   // uv
+    cv::Point2f startPoint;      // normalized unprojected
+    cv::Point2f endPoint;        // normalized unprojected
 };
 
 class FrameLines
@@ -54,39 +66,67 @@ class FrameLines
 public:
     int frame_id;
     Mat img;
-    
+
     vector<Line> vecLine;
-    vector< int > lineID;
+    vector<int> lineID;
 
     // opencv3 lsd+lbd
     std::vector<KeyLine> keylsd;
+
     Mat lbd_descr;
 };
-typedef shared_ptr< FrameLines > FrameLinesPtr;
+
+typedef shared_ptr<FrameLines> FrameLinesPtr;
 
 class LineFeatureTracker
 {
-  public:
+public:
     LineFeatureTracker();
 
     void readIntrinsicParameter(const string &calib_file);
-    void NearbyLineTracking(const vector<Line> forw_lines, const vector<Line> cur_lines, vector<pair<int, int> >& lineMatches);
+    void NearbyLineTracking(const vector<Line> forw_lines, const vector<Line> cur_lines, vector<pair<int, int>> &lineMatches);
 
     vector<Line> undistortedLineEndPoints();
 
+    void visualize_line_match(Mat imageMat1, Mat imageMat2,
+                          std::vector<KeyLine> octave0_1);
+
+
+    void reduceVector(vector<int> &v, vector<uchar> status);    
+    void reduceVector(vector<Line2D> &v, vector<uchar> status);
+    void reduceVector(vector<cv::line_descriptor::KeyLine> &v, vector<uchar> status);
+    void reduceVector(vector<Line> &v, vector<uchar> status);
+
+
+    void addPoints();
+
+    bool updateID(unsigned int i);
+
+
     void readImage(const cv::Mat &_img);
 
-    FrameLinesPtr curframe_, forwframe_;
+    FrameLinesPtr prevframe_, curframe_, forwframe_;
 
-    cv::Mat undist_map1_, undist_map2_ , K_;
+    cv::Mat undist_map1_, undist_map2_, K_;
 
-    camodocal::CameraPtr m_camera;       // pinhole camera
+
+    std::vector<cv::Vec4f> m_detectedLines;
+    std::vector<Line2D> m_forwardedLines, m_prevLines, m_newLines;
+    vector<int> lineID_tracked;
+
+    long long int m_featureID{0};
+
+    camodocal::CameraPtr m_camera; // pinhole camera
 
     int frame_cnt;
-    vector<int> ids;                     // 每个特征点的id
-    vector<int> linetrack_cnt;           // 记录某个特征已经跟踪多少帧了，即被多少帧看到了
-    int allfeature_cnt;                  // 用来统计整个地图中有了多少条线，它将用来赋值
+    vector<Line2D> n_pts;
+    vector<int> ids;           // The id of each feature point
+    vector<int> linetrack_cnt; // Record how many frames a feature has tracked, that is, how many frames have been seen
+    int allfeature_cnt;        // It is used to count how many lines there are in the whole map, and it will be used for assignment
 
     double sum_time;
     double mean_time;
+    int n_id;
+    bool init = true;
+
 };

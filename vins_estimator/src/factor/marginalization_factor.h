@@ -55,7 +55,7 @@ class MarginalizationInfo
     std::vector<double *> getParameterBlocks(std::unordered_map<long, double *> &addr_shift);
 
     std::vector<ResidualBlockInfo *> factors;
-    int m, n;         // n： 剩余误差的总维数
+    int m, n;         // n： total dimensionality of residual error
     std::unordered_map<long, int> parameter_block_size; //global size
     int sum_block_size;
     std::unordered_map<long, int> parameter_block_idx; //

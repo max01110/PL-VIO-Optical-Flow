@@ -25,6 +25,7 @@ vector<Line> LineFeatureTracker::undistortedLineEndPoints()
     float fy = K_.at<float>(1, 1);
     float cx = K_.at<float>(0, 2);
     float cy = K_.at<float>(1, 2);
+
     for (unsigned int i = 0; i <curframe_->vecLine.size(); i++)
     {
         un_lines[i].StartPt.x = (curframe_->vecLine[i].StartPt.x - cx)/fx;
@@ -32,6 +33,7 @@ vector<Line> LineFeatureTracker::undistortedLineEndPoints()
         un_lines[i].EndPt.x = (curframe_->vecLine[i].EndPt.x - cx)/fx;
         un_lines[i].EndPt.y = (curframe_->vecLine[i].EndPt.y - cy)/fy;
     }
+
     return un_lines;
 }
 
@@ -240,50 +242,47 @@ void LineFeatureTracker::readImage(const cv::Mat &_img)
 #endif
 
 #define MATCHES_DIST_THRESHOLD 30
-void visualize_line_match(Mat imageMat1, Mat imageMat2,
-                          std::vector<KeyLine> octave0_1, std::vector<KeyLine>octave0_2,
-                          std::vector<DMatch> good_matches)
+
+void LineFeatureTracker::visualize_line_match(Mat imageMat1, Mat imageMat2,
+                          std::vector<KeyLine> octave0_1)
 {
     //	Mat img_1;
-    cv::Mat img1,img2;
-    if (imageMat1.channels() != 3){
+    ROS_INFO("VISUALIZE .........................................");
+    cv::Mat img1, img2;
+    if (imageMat1.channels() != 3)
+    {
         cv::cvtColor(imageMat1, img1, cv::COLOR_GRAY2BGR);
     }
-    else{
+    else
+    {
         img1 = imageMat1;
     }
 
-    if (imageMat2.channels() != 3){
+    if (imageMat2.channels() != 3)
+    {
         cv::cvtColor(imageMat2, img2, cv::COLOR_GRAY2BGR);
     }
-    else{
+    else
+    {
         img2 = imageMat2;
     }
-
 
     //    srand(time(NULL));
     int lowest = 0, highest = 255;
     int range = (highest - lowest) + 1;
-    for (int k = 0; k < good_matches.size(); ++k) {
-        DMatch mt = good_matches[k];
-
-        KeyLine line1 = octave0_1[mt.queryIdx];  // trainIdx
-        KeyLine line2 = octave0_2[mt.trainIdx];  //queryIdx
-
+    for (int k = 0; k < octave0_1.size(); ++k)
+    {
 
         unsigned int r = lowest + int(rand() % range);
         unsigned int g = lowest + int(rand() % range);
         unsigned int b = lowest + int(rand() % range);
-        cv::Point startPoint = cv::Point(int(line1.startPointX), int(line1.startPointY));
-        cv::Point endPoint = cv::Point(int(line1.endPointX), int(line1.endPointY));
-        cv::line(img1, startPoint, endPoint, cv::Scalar(r, g, b),2 ,8);
 
-        cv::Point startPoint2 = cv::Point(int(line2.startPointX), int(line2.startPointY));
-        cv::Point endPoint2 = cv::Point(int(line2.endPointX), int(line2.endPointY));
-        cv::line(img2, startPoint2, endPoint2, cv::Scalar(r, g, b),2, 8);
-        cv::line(img2, startPoint, startPoint2, cv::Scalar(0, 0, 255),1, 8);
-        cv::line(img2, endPoint, endPoint2, cv::Scalar(0, 0, 255),1, 8);
+        cv::Point startPoint = cv::Point(int(octave0_1[k].startPointX), int(octave0_1[k].startPointY));
+        cv::Point endPoint = cv::Point(int(octave0_1[k].endPointX), int(octave0_1[k].endPointY));
+        
+        double len = std::min(1.0, 1.0 * linetrack_cnt[k] / WINDOW_SIZE);
 
+        cv::line(img1, startPoint, endPoint, cv::Scalar(255 * (1 - len), 0, 255 * len), 2, 8);
     }
     /* plot matches */
     /*
@@ -292,11 +291,10 @@ void visualize_line_match(Mat imageMat1, Mat imageMat2,
     drawLineMatches( imageMat1, octave0_1, imageMat2, octave0_2, good_matches, lsd_outImg, Scalar::all( -1 ), Scalar::all( -1 ), lsd_mask,
     DrawLinesMatchesFlags::DEFAULT );
 
-    imshow( "LSD matches", lsd_outImg );
+    imshow("LSD matches", lsd_outImg );
     */
     imshow("LSD matches1", img1);
-    imshow("LSD matches2", img2);
-    waitKey(1);
+    waitKey(5);
 }
 
 void visualize_line_match(Mat imageMat1, Mat imageMat2,
@@ -357,167 +355,357 @@ void visualize_line_match(Mat imageMat1, Mat imageMat2,
     waitKey(1);
 }
 
+void LineFeatureTracker::reduceVector(vector<int> &v, vector<uchar> status)
+{
+    int j = 0;
+    for (int i = 0; i < status.size(); i+=2)
+        if (status[i] && status[i+1])
+            v[j++] = v[i/2];
+    v.resize(j);
+}
+
+void LineFeatureTracker::reduceVector(vector<Line2D> &v, vector<uchar> status)
+{
+    int j = 0;
+    for (int i = 0; i < status.size(); i+=2)
+        if (status[i] && status[i+1])
+            v[j++] = v[i/2];
+    v.resize(j);
+}
+
+void LineFeatureTracker::reduceVector(vector<cv::line_descriptor::KeyLine> &v, vector<uchar> status)
+{
+    int j = 0;
+    for (int i = 0; i < status.size(); i+=2)
+        if (status[i] && status[i+1])
+            v[j++] = v[i/2];
+    v.resize(j);
+}
+
+void LineFeatureTracker::reduceVector(vector<Line> &v, vector<uchar> status)
+{
+    int j = 0;
+    for (int i = 0; i < status.size(); i+=2)
+        if (status[i] && status[i+1])
+            v[j++] = v[i/2];
+    v.resize(j);
+}
+
+
+void LineFeatureTracker::addPoints()
+{
+    for (auto &p : n_pts)
+    {
+
+        // ROS_INFO("in add points-------------------------------------");
+        //pushback keylsd;     
+        cv::line_descriptor::KeyLine keyL;
+        keyL.endPointX = p.endPixelCoord.x;
+        keyL.endPointY = p.endPixelCoord.y;
+
+        keyL.startPointX = p.startPixelCoord.x;
+        keyL.startPointY = p.startPixelCoord.y;
+
+        forwframe_->keylsd.push_back(keyL);
+
+
+        //pushback vecline:
+        Line l;
+        l.StartPt = keyL.getStartPoint(); // check if this actually works!
+        l.EndPt = keyL.getEndPoint();     // check if this actually works!
+        // l.length = lsd.lineLength;       // NEED TO DO!!!
+
+        forwframe_->vecLine.push_back(l);
+
+        forwframe_->lineID.push_back(-1);
+
+        ids.push_back(-1);       // Feature point id, initially assign a value of -1 to these new feature points, and use a global variable in the updateID() function to assign values ​​to him
+        
+        // track_cnt.push_back(1);  // Number of observations to initialize feature points: 1 time
+        linetrack_cnt.push_back(1);
+    
+    }
+}
+
+bool LineFeatureTracker::updateID(unsigned int i)
+{
+
+    if (i < ids.size())
+        {
+            if (ids[i] == -1)
+                ids[i] = n_id++;   // n_id is a global variable, giving each feature point a unique id
+            return true;
+        }
+        else
+            return false;
+
+    // if (i < curframe_->lineID.size())
+    // {
+    //     if (curframe_->lineID[i] == -1)
+    //         curframe_->lineID[i] = n_id++;   // n_id is a global variable, giving each feature point a unique id
+    //     return true;
+    // }
+    // else
+    //     return false;
+}
+
+bool inBorder(const cv::Point2f &pt)
+{
+    const int BORDER_SIZE = 1;
+    int img_x = cvRound(pt.x);
+    int img_y = cvRound(pt.y);
+    return BORDER_SIZE <= img_x && img_x < COL - BORDER_SIZE && BORDER_SIZE <= img_y && img_y < ROW - BORDER_SIZE;
+}
+
+
 void LineFeatureTracker::readImage(const cv::Mat &_img)
 {
+
+    if (init) {
+        init = false;
+        forwframe_.reset(new FrameLines);
+        curframe_.reset(new FrameLines);
+        prevframe_.reset(new FrameLines);
+    }
+
     cv::Mat img;
-    TicToc t_p;
-    frame_cnt++;
+    TicToc t_r;
+    // ROS_INFO("IN READ IMAGE LINE [1]");
 
-    cv::remap(_img, img, undist_map1_, undist_map2_, CV_INTER_LINEAR);
 
-//    cv::imshow("lineimg",img);
-//    cv::waitKey(1);
-    //ROS_INFO("undistortImage costs: %fms", t_p.toc());
-    if (EQUALIZE)   // 直方图均衡化
+    cv::remap(_img, img, undist_map1_, undist_map2_, INTER_LINEAR);
+
+    if (EQUALIZE)   // Histogram equalization
     {
         cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(3.0, cv::Size(8, 8));
         clahe->apply(img, img);
     }
+    else
+        img = _img;
 
-    bool first_img = false;
-    if (forwframe_ == nullptr) // 系统初始化的第一帧图像
+    // ROS_INFO("IN READ IMAGE LINE [1.2]");
+
+    if (forwframe_->img.empty())
     {
+        // ROS_INFO("IN READ IMAGE LINE [1.3]");
         forwframe_.reset(new FrameLines);
         curframe_.reset(new FrameLines);
-        forwframe_->img = img;
-        curframe_->img = img;
-        first_img = true;
+        //potentially also prevframe^^??
+        // ROS_INFO("IN READ IMAGE LINE [1.4]");
+
+        prevframe_->img = curframe_->img = forwframe_->img = img;
+        
     }
     else
     {
-        forwframe_.reset(new FrameLines);  // 初始化一个新的帧
+        // ROS_INFO("IN READ IMAGE LINE [1.5]");
+
+        forwframe_.reset(new FrameLines);
         forwframe_->img = img;
     }
 
-    // step 1: line extraction
-    TicToc t_li;
-    std::vector<KeyLine> lsd, keylsd;
-    Ptr<LSDDetector> lsd_;
-    lsd_ = cv::line_descriptor::LSDDetector::createLSDDetector();
-    lsd_->detect( img, lsd, 2, 2 );
+    // ROS_INFO("IN READ IMAGE LINE [2]");
 
-    sum_time += t_li.toc();
-//    ROS_INFO("line detect costs: %fms", t_li.toc());
-
-    Mat lbd_descr, keylbd_descr;
-    // step 2: lbd descriptor
-    TicToc t_lbd;
-    Ptr<BinaryDescriptor> bd_ = BinaryDescriptor::createBinaryDescriptor( );
-    bd_->compute( img, lsd, lbd_descr );
-
-//////////////////////////
-    for ( int i = 0; i < (int) lsd.size(); i++ )
-    {
-        if( lsd[i].octave == 0 && lsd[i].lineLength >= 30)
-        {
-            keylsd.push_back( lsd[i] );
-            keylbd_descr.push_back( lbd_descr.row( i ) );
-        }
-    }
-//    ROS_INFO("lbd_descr detect costs: %fms", keylsd.size() * t_lbd.toc() / lsd.size() );
-    sum_time += keylsd.size() * t_lbd.toc() / lsd.size();
-///////////////
-
-    forwframe_->keylsd = keylsd;
-    forwframe_->lbd_descr = keylbd_descr;
-
-    for (size_t i = 0; i < forwframe_->keylsd.size(); ++i) {
-        if(first_img)
-            forwframe_->lineID.push_back(allfeature_cnt++);
-        else
-            forwframe_->lineID.push_back(-1);   // give a negative id
-    }
+    forwframe_->keylsd.clear();
 
 
-    if(curframe_->keylsd.size() > 0)
+    if (curframe_->keylsd.size() > 0)       // i时刻的 特征点
     {
 
-        /* compute matches */
-        TicToc t_match;
-        std::vector<DMatch> lsd_matches;
-        Ptr<BinaryDescriptorMatcher> bdm_;
-        bdm_ = BinaryDescriptorMatcher::createBinaryDescriptorMatcher();
-        bdm_->match(forwframe_->lbd_descr, curframe_->lbd_descr, lsd_matches);
-//        ROS_INFO("lbd_macht costs: %fms", t_match.toc());
-        sum_time += t_match.toc();
-        mean_time = sum_time/frame_cnt;
-        ROS_INFO("line feature tracker mean costs: %fms", mean_time);
+        visualize_line_match(curframe_->img.clone(), curframe_->img.clone(), curframe_->keylsd);
 
-        /* select best matches */
-        std::vector<DMatch> good_matches;
-        std::vector<KeyLine> good_Keylines;
-        good_matches.clear();
-        for ( int i = 0; i < (int) lsd_matches.size(); i++ )
+        // ROS_INFO("IN OPTICAL FLOW [1]");
+
+        // ROS_INFO("PREV KELSD SIZE; %i: ", curframe_->lineID.size());
+
+        std::vector<cv::Point2f> prevPoints, forwardedPoints, prevPointsReversed;
+
+        for (const auto &l : curframe_->keylsd)
         {
-            if( lsd_matches[i].distance < MATCHES_DIST_THRESHOLD ){
-
-                DMatch mt = lsd_matches[i];
-                KeyLine line1 =  forwframe_->keylsd[mt.queryIdx] ;
-                KeyLine line2 =  curframe_->keylsd[mt.trainIdx] ;
-                Point2f serr = line1.getStartPoint() - line2.getStartPoint();
-                Point2f eerr = line1.getEndPoint() - line2.getEndPoint();
-                if((serr.dot(serr) < 60 * 60) && (eerr.dot(eerr) < 60 * 60))   // 线段在图像里不会跑得特别远
-                    good_matches.push_back( lsd_matches[i] );
-            }
-
+            prevPoints.emplace_back(l.getStartPoint());
+            prevPoints.emplace_back(l.getEndPoint());
         }
 
-        std::cout << forwframe_->lineID.size() <<" " <<curframe_->lineID.size();
-        for (int k = 0; k < good_matches.size(); ++k) {
-            DMatch mt = good_matches[k];
-            forwframe_->lineID[mt.queryIdx] = curframe_->lineID[mt.trainIdx];
+        // ROS_INFO("IN OPTICAL FLOW [2]");
 
-        }
-        visualize_line_match(forwframe_->img.clone(), curframe_->img.clone(), forwframe_->keylsd, curframe_->keylsd, good_matches);
+        // FLD TO OPTICAL FLOW POINTS
+        std::vector<uchar> status, statusReverse;
+        std::vector<float> err, errReverse;
+        cv::Size windowSize(21, 21);
 
-        vector<KeyLine> vecLine_tracked, vecLine_new;
-        vector< int > lineID_tracked, lineID_new;
-        Mat DEscr_tracked, Descr_new;
+        cv::calcOpticalFlowPyrLK(curframe_->img,
+                                 forwframe_->img,
+                                 prevPoints,
+                                 forwardedPoints,
+                                 status,
+                                 err,
+                                 cv::Size(21, 21),
+                                 3);
 
-        // 将跟踪的线和没跟踪上的线进行区分
-        for (size_t i = 0; i < forwframe_->keylsd.size(); ++i)
+        cv::calcOpticalFlowPyrLK(forwframe_->img,
+                                 curframe_->img,
+                                 forwardedPoints,
+                                 prevPointsReversed,
+                                 statusReverse,
+                                 errReverse,
+                                 cv::Size(21, 21),
+                                 3);
+
+        // ROS_INFO("IN OPTICAL FLOW [3]");
+        vector<KeyLine> vecLine_tracked;
+
+        for (std::size_t idx = 0; idx < forwardedPoints.size(); idx += 2)
         {
-            if( forwframe_->lineID[i] == -1)
+            Line2D l;
+            cv::line_descriptor::KeyLine keyL;
+            l.startPixelCoord = forwardedPoints[idx];
+            l.endPixelCoord = forwardedPoints[idx + 1];
+            m_forwardedLines.emplace_back(l);
+
+            keyL.endPointX = l.endPixelCoord.x;
+            keyL.endPointY = l.endPixelCoord.y;
+
+            keyL.startPointX = l.startPixelCoord.x;
+            keyL.startPointY = l.startPixelCoord.y;
+
+            forwframe_->keylsd.emplace_back(keyL);
+
+            Line lineV;
+            lineV.StartPt = keyL.getStartPoint(); // check if this actually works!
+            lineV.EndPt = keyL.getEndPoint();     // check if this actually works!
+        // l.length = lsd.lineLength;       // NEED TO DO!!!
+
+            forwframe_->vecLine.push_back(lineV);
+        }
+
+
+
+
+        // ROS_INFO("IN OPTICAL FLOW [4]");
+        // if reverse optical flow from forwarded points
+        // do not match the previous points, then mark the point as untracked
+        for (std::size_t idx = 0; idx < prevPoints.size(); idx++)
+        {
+            const auto &p1 = prevPoints[idx];
+            const auto &p2 = prevPointsReversed[idx];
+            // ROS_INFO("???????????????????/pixel errow optical flow: %f", std::abs(p1.x - p2.x));
+
+            if (std::abs(p1.x - p2.x) > 3     // 3 CAN BE A DIFFERENT VALUE!!!
+                || std::abs(p1.y - p2.y) > 3 || !inBorder(forwardedPoints[idx])) // 3 CAN BE A DIFFERENT VALUE!!!
             {
-                forwframe_->lineID[i] = allfeature_cnt++;
-                vecLine_new.push_back(forwframe_->keylsd[i]);
-                lineID_new.push_back(forwframe_->lineID[i]);
-                Descr_new.push_back( forwframe_->lbd_descr.row( i ) );
-            }
-            else
-            {
-                vecLine_tracked.push_back(forwframe_->keylsd[i]);
-                lineID_tracked.push_back(forwframe_->lineID[i]);
-                DEscr_tracked.push_back( forwframe_->lbd_descr.row( i ) );
+
+                // ROS_INFO("+++++++++++++++pixel errow optical flow: %f", std::abs(p1.x - p2.x));
+                status[idx] = static_cast<uchar>(0);
             }
         }
-        int diff_n = 50 - vecLine_tracked.size();  // 跟踪的线特征少于50了，那就补充新的线特征, 还差多少条线
-        if( diff_n > 0)    // 补充线条
-        {
+        
 
-            for (int k = 0; k < vecLine_new.size(); ++k) {
-                vecLine_tracked.push_back(vecLine_new[k]);
-                lineID_tracked.push_back(lineID_new[k]);
-                DEscr_tracked.push_back(Descr_new.row(k));
-            }
+        
+        // ROS_INFO("IN READ IMAGE LINE [3]");
 
-        }
 
-        forwframe_->keylsd = vecLine_tracked;
-        forwframe_->lineID = lineID_tracked;
-        forwframe_->lbd_descr = DEscr_tracked;
+        // prev_pts is a vector container, status indicates whether each point is tracked
+        //successfully, reduceVector puts all the tracked points in front of this vector
+        //container, such as 1,0,0,1,1,0 becomes 1 ,1,1        
+        
+
+        //CHECK THIS!!!!!!!????????
+
+        reduceVector(prevframe_->keylsd, status);
+        reduceVector(curframe_->keylsd, status);
+        reduceVector(forwframe_->keylsd, status);
+
+        reduceVector(prevframe_->vecLine, status);
+        reduceVector(curframe_->vecLine, status);
+        reduceVector(forwframe_->vecLine, status);
+
+        // reduceVector(curframe_->lineID, status);
+        reduceVector(ids, status);
+        reduceVector(linetrack_cnt, status);
+
+        // curframe_->keylsd = forwframe_->keylsd;
+        // curframe_->vecLine = forwframe_->vecLine;
+
+
+
+
+
 
     }
 
-    // 将opencv的KeyLine数据转为季哥的Line
-    for (int j = 0; j < forwframe_->keylsd.size(); ++j) {
-        Line l;
-        KeyLine lsd = forwframe_->keylsd[j];
-        l.StartPt = lsd.getStartPoint();
-        l.EndPt = lsd.getEndPoint();
-        l.length = lsd.lineLength;
-        forwframe_->vecLine.push_back(l);
+    if (PUB_THIS_FRAME)
+    {
+        // rejectWithF();              // Exclude outliers by computing the F matrix
+
+        for (auto &n : linetrack_cnt)   // Update the number of tracking frames of the feature on tracking, successfully tracked from frame i to frame i+1, and the number of tracking frames +1
+            n++;
+
+        // ROS_DEBUG("set mask begins");
+        // TicToc t_m;
+        // setMask();                 // Set the template to cover up the areas where feature points have been detected, and other areas are used to detect new feature points
+        // ROS_DEBUG("set mask costs %fms", t_m.toc());
+
+        // forwframe_->lineID = prevframe_->lineID;
+
+        // ROS_INFO("detect feature begins");
+        TicToc t_t;    //5 IS ARBITRARY - SHOULD CHANGE
+        int n_max_cnt = 10 - static_cast<int>(forwframe_->keylsd.size());  // If the number of current feature points < MAX_CNT, then detect some new feature points
+        if (n_max_cnt > 0)    // is less than the maximum number of feature points, then add new features
+        {
+            
+            std::vector<KeyLine> lsd, keylsd;
+
+            int length_threshold = 80;
+            float distance_threshold = 1.41421356f;
+            double canny_th1 = 50.0;
+            double canny_th2 = 50.0;
+            int canny_aperture_size = 3;
+            bool do_merge = false;
+            Ptr<cv::ximgproc::FastLineDetector> fld_ = cv::ximgproc::createFastLineDetector(length_threshold,
+                                                                                            distance_threshold, canny_th1, canny_th2, canny_aperture_size, do_merge);
+            vector<Vec4f> fld;
+
+            fld_->detect(img, fld); 
+
+            // Line2D l;
+            // l.startPixelCoord.x = fld[0](0);
+            // l.startPixelCoord.y = fld[0](1);
+            // l.endPixelCoord.x = fld[0](2);
+            // l.endPixelCoord.y = fld[0](3);
+
+            // n_pts.emplace_back(l);
+            
+            for (auto &dLine : fld)
+            {
+                Line2D l;
+                l.startPixelCoord.x = dLine(0);
+                l.startPixelCoord.y = dLine(1);
+                l.endPixelCoord.x = dLine(2);
+                l.endPixelCoord.y = dLine(3);
+
+                n_pts.emplace_back(l);
+            }
+            
+        }
+        else {
+            n_pts.clear();
+        }
+
+        // ROS_INFO("add feature begins");
+        TicToc t_a;
+        addPoints();         // Add this new feature point to forw_pts
+        
+        prevframe_->keylsd = forwframe_->keylsd;
+        prevframe_->vecLine = forwframe_->vecLine;
+        prevframe_->lineID = forwframe_->lineID;
+        prevframe_ = forwframe_;
+
     }
+
+    
+    curframe_->keylsd = forwframe_->keylsd;
+    curframe_->vecLine = forwframe_->vecLine;
+    curframe_->lineID = forwframe_->lineID;
     curframe_ = forwframe_;
 
 

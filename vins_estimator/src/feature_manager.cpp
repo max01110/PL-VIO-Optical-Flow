@@ -105,7 +105,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vec
 bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vector<pair<int, Vector3d>>> &image, const map<int, vector<pair<int, Vector4d>>> &lines)
 {
     ROS_DEBUG("input point feature: %d", (int)image.size());
-    ROS_DEBUG("input line feature: %d", (int)lines.size());
+    ROS_INFO("input line feature: %d", (int)lines.size());
     ROS_DEBUG("num of feature: %d", getFeatureCount());  // 已有的特征数目
     double parallax_sum = 0;
     int parallax_num = 0;
@@ -133,18 +133,21 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vec
         }
     }
 
-    for (auto &id_line : lines)   //遍历当前帧上的特征
+    for (auto &id_line : lines)   //Iterate over the features on the current frame
     {
-        lineFeaturePerFrame f_per_fra(id_line.second[0].second);  // 观测
+        lineFeaturePerFrame f_per_fra(id_line.second[0].second);  // to observe
+
+        ROS_INFO("TESTING SOMETHING %f", id_line.second[0].second(0));
 
         int feature_id = id_line.first;
-        //cout << "line id: "<< feature_id << "\n";
+        // cout << "line id: "<< feature_id << "\n";
+
         auto it = find_if(linefeature.begin(), linefeature.end(), [feature_id](const lineFeaturePerId &it)
         {
-            return it.feature_id == feature_id;    // 在feature里找id号为feature_id的特征
+            return it.feature_id == feature_id;    // Find the feature with the id number feature_id in the feature
         });
 
-        if (it == linefeature.end())  // 如果之前没存这个特征，说明是新的
+        if (it == linefeature.end())  // If this feature has not been saved before, it means it is new
         {
             linefeature.push_back(lineFeaturePerId(feature_id, frame_count));
             linefeature.back().linefeature_per_frame.push_back(f_per_fra);
@@ -419,24 +422,37 @@ void FeatureManager::setLineOrthInCamera(MatrixXd x)
 }
 MatrixXd FeatureManager::getLineOrthVector(Vector3d Ps[], Vector3d tic[], Matrix3d ric[])
 {
+
+    ROS_INFO("IN LINEORTHVECTOR=====================================");
+
+    std::cout<<"linefeature size getLineOrthVector 1: "<< linefeature.size()<<std::endl;
     MatrixXd lineorth_vec(getLineFeatureCount(),4);
+    ROS_INFO("IN LINEORTHVECTOR [1]");
     int feature_index = -1;
     for (auto &it_per_id : linefeature)
     {
+        // ROS_INFO("IN LINEORTHVECTOR [1.1]");
         it_per_id.used_num = it_per_id.linefeature_per_frame.size();
+        // ROS_INFO_STREAM("it_per_id.used_num: " << it_per_id.used_num);
+        // ROS_INFO("IN LINEORTHVECTOR [1.2]");
         if (!(it_per_id.used_num >= LINE_MIN_OBS && it_per_id.start_frame < WINDOW_SIZE - 2 && it_per_id.is_triangulation))
             continue;
 
-        int imu_i = it_per_id.start_frame;
+        ROS_INFO("IN LINEORTHVECTOR [1.3]");
 
+
+        int imu_i = it_per_id.start_frame;
+        ROS_INFO("IN LINEORTHVECTOR [2]");
         ROS_ASSERT(NUM_OF_CAM == 1);
 
         Eigen::Vector3d twc = Ps[imu_i] + Rs[imu_i] * tic[0];   // twc = Rwi * tic + twi
         Eigen::Matrix3d Rwc = Rs[imu_i] * ric[0];               // Rwc = Rwi * Ric
-
+        ROS_INFO("IN LINEORTHVECTOR [3]");
         Vector6d line_w = plk_to_pose(it_per_id.line_plucker, Rwc, twc);  // transfrom to world frame
         // line_w.normalize();
+        ROS_INFO("IN LINEORTHVECTOR [4]");
         lineorth_vec.row(++feature_index) = plk_to_orth(line_w);
+        ROS_INFO("IN LINEORTHVECTOR [5]");
         //lineorth_vec.row(++feature_index) = plk_to_orth(it_per_id.line_plucker);
 
     }
@@ -501,15 +517,37 @@ double FeatureManager::reprojection_error( Vector4d obs, Matrix3d Rwc, Vector3d 
 //
 void FeatureManager::triangulateLine(Vector3d Ps[], Vector3d tic[], Matrix3d ric[])
 {
-    //std::cout<<"linefeature size: "<<linefeature.size()<<std::endl;
-    for (auto &it_per_id : linefeature)        // 遍历每个特征，对新特征进行三角化
-    {
-        it_per_id.used_num = it_per_id.linefeature_per_frame.size();    // 已经有多少帧看到了这个特征
-        if (!(it_per_id.used_num >= LINE_MIN_OBS && it_per_id.start_frame < WINDOW_SIZE - 2))   // 看到的帧数少于2， 或者 这个特征最近倒数第二帧才看到， 那都不三角化
-            continue;
+    // ROS_INFO("IN TRIANGULATE LINE");
 
-        if (it_per_id.is_triangulation)       // 如果已经三角化了
+    std::cout<<"linefeature size TRIANGULATION START: "<<linefeature.size()<<std::endl;
+    for (auto &it_per_id : linefeature)        //Iterate through each feature and triangulate the new feature
+    {
+        it_per_id.used_num = it_per_id.linefeature_per_frame.size();    // How many frames have seen this feature
+        // ROS_INFO_STREAM("+++++++++ triangulate Line it_per_id.used_num: " << it_per_id.used_num);
+
+
+        ROS_INFO("TRIANGULATE LINE: it_per_id.used_num: %i", it_per_id.used_num);
+        ROS_INFO("TRIANGULATE LINE: it_per_id.start_frame: %i", it_per_id.start_frame);
+
+        ROS_INFO("bruh");
+
+        if (!(it_per_id.used_num >= LINE_MIN_OBS && it_per_id.start_frame < WINDOW_SIZE - 2))   // If the number of frames seen is less than 2, or this feature is only seen in the penultimate frame, it will not be triangulated
+        {
+            ROS_INFO("DEBUG ()()()[1]");
             continue;
+        }    
+
+        ROS_INFO("bruh?");
+
+        
+        if (it_per_id.is_triangulation)
+        {
+            // If already triangulated
+            ROS_INFO("DEBUG ()()()[2]");
+            continue;
+        }       
+
+        ROS_INFO("bruh??");
 
         int imu_i = it_per_id.start_frame, imu_j = imu_i - 1;
 
@@ -525,10 +563,16 @@ void FeatureManager::triangulateLine(Vector3d Ps[], Vector3d tic[], Matrix3d ric
 
         // plane pi from ith obs in ith camera frame
         Eigen::Vector4d pii;
-        Eigen::Vector3d ni;      // normal vector of plane    
+        Eigen::Vector3d ni;      // normal vector of plane
+        ROS_INFO("TRIANGULATE PIPELINE[1]");
+   
         for (auto &it_per_frame : it_per_id.linefeature_per_frame)   // 遍历所有的观测， 注意 start_frame 也会被遍历
         {
             imu_j++;
+            
+            it_per_frame.lineobs[1];
+
+            ROS_INFO("TRIANGULATE PIPELINE[2]");
 
             if(imu_j == imu_i)   // 第一个观测是start frame 上
             {
@@ -537,6 +581,7 @@ void FeatureManager::triangulateLine(Vector3d Ps[], Vector3d tic[], Matrix3d ric
                 Eigen::Vector3d p2( obsi(2), obsi(3), 1 );
                 pii = pi_from_ppp(p1, p2,Vector3d( 0, 0, 0 ));
                 ni = pii.head(3); ni.normalize();
+                ROS_INFO("DEBUG ()()()[3]");
                 continue;
             }
 
@@ -558,6 +603,10 @@ void FeatureManager::triangulateLine(Vector3d Ps[], Vector3d tic[], Matrix3d ric
             Eigen::Vector3d nj = pij.head(3); nj.normalize(); 
 
             double cos_theta = ni.dot(nj);
+            ROS_INFO("obsj_tmp(0): %d", obsj_tmp(0));
+            ROS_INFO("cos_theta: %d", cos_theta);
+            
+
             if(cos_theta < min_cos_theta)
             {
                 min_cos_theta = cos_theta;
@@ -576,11 +625,14 @@ void FeatureManager::triangulateLine(Vector3d Ps[], Vector3d tic[], Matrix3d ric
 
         }
         
+        ROS_INFO("TRIANGULATE PIPELINE[3]");
         // if the distance between two frame is lower than 0.1m or the parallax angle is lower than 15deg , do not triangulate.
         // if(d < 0.1 || min_cos_theta > 0.998) 
-        if(min_cos_theta > 0.998)
+        if(min_cos_theta > 0.998) {
         // if( d < 0.2 ) 
+            ROS_INFO("DEBUG ()()()[4]");
             continue;
+        }
 
         // plane pi from jth obs in ith camera frame
         Vector3d p3( obsj(0), obsj(1), 1 );
@@ -593,6 +645,7 @@ void FeatureManager::triangulateLine(Vector3d Ps[], Vector3d tic[], Matrix3d ric
         Vector3d n = plk.head(3);
         Vector3d v = plk.tail(3);
 
+        ROS_INFO("TRIANGULATE PIPELINE[4]");
         //Vector3d cp = plucker_origin( n, v );
         //if ( cp(2) < 0 )
         {
@@ -606,6 +659,7 @@ void FeatureManager::triangulateLine(Vector3d Ps[], Vector3d tic[], Matrix3d ric
         //it_per_id.line_plucker = line;
 
         // plk.normalize();
+        ROS_INFO("SETTING TRIANGULATION TO TRUE?????????");
         it_per_id.line_plucker = plk;  // plk in camera frame
         it_per_id.is_triangulation = true;
 
@@ -666,6 +720,8 @@ void FeatureManager::triangulateLine(Vector3d Ps[], Vector3d tic[], Matrix3d ric
     }
 
 //    removeLineOutlier(Ps,tic,ric);
+    std::cout<<"linefeature size TRIANGULATION END: "<<linefeature.size()<<std::endl;
+
 }
 
 /**
@@ -673,6 +729,8 @@ void FeatureManager::triangulateLine(Vector3d Ps[], Vector3d tic[], Matrix3d ric
  */
 void FeatureManager::triangulateLine(double baseline)
 {
+
+    ROS_INFO("IN TRIANGULATE LINE");
     for (auto &it_per_id : linefeature)        // 遍历每个特征，对新特征进行三角化
     {
         it_per_id.used_num = it_per_id.linefeature_per_frame.size();    // 已经有多少帧看到了这个特征
@@ -1004,8 +1062,18 @@ void FeatureManager::triangulateLine(Vector3d Ps[], Vector3d tic[], Matrix3d ric
 */
 void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[])
 {
-    for (auto &it_per_id : feature)        // 遍历每个特征，对新特征进行三角化
+
+    // int i = 0;
+    for (auto &it_per_id : feature)        // Iterate through each feature and triangulate the new feature
     {
+
+        // i++;
+
+        // if (i > 1) {
+        //     ROS_INFO("break!");
+        //     break;
+        // }
+
         it_per_id.used_num = it_per_id.feature_per_frame.size();    // 已经有多少帧看到了这个特征
         if (!(it_per_id.used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))   // 看到的帧数少于2， 或者 这个特征最近倒数第二帧才看到， 那都不三角化
             continue;

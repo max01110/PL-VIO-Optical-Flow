@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/max/catkin_ws/src/PL-VIO/camera_model/build/devel/setup.sh

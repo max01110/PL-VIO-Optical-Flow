@@ -8,6 +8,9 @@
 #include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/core/types.hpp>
+#include <opencv2/opencv.hpp>
+
 
 #include "camodocal/gpl/gpl.h"
 
@@ -548,62 +551,67 @@ EquidistantCamera::initUndistortRectifyMap(cv::Mat& map1, cv::Mat& map2,
                                            float cx, float cy,
                                            cv::Mat rmat) const
 {
-    if (imageSize == cv::Size(0, 0))
-    {
-        imageSize = cv::Size(mParameters.imageWidth(), mParameters.imageHeight());
-    }
 
-    cv::Mat mapX = cv::Mat::zeros(imageSize.height, imageSize.width, CV_32F);
-    cv::Mat mapY = cv::Mat::zeros(imageSize.height, imageSize.width, CV_32F);
+    // std::cout << "CHECKING DEBUG!" << std::endl;
 
-    Eigen::Matrix3f K_rect;
 
-    if (cx == -1.0f && cy == -1.0f)
-    {
-        K_rect << fx, 0, imageSize.width / 2,
-                  0, fy, imageSize.height / 2,
-                  0, 0, 1;
-    }
-    else
-    {
-        K_rect << fx, 0, cx,
-                  0, fy, cy,
-                  0, 0, 1;
-    }
+    // if (imageSize == cv::Size(0, 0))
+    // {
+    //     imageSize = cv::Size(mParameters.imageWidth(), mParameters.imageHeight());
 
-    if (fx == -1.0f || fy == -1.0f)
-    {
-        K_rect(0,0) = mParameters.mu();
-        K_rect(1,1) = mParameters.mv();
-    }
+    // }
 
-    Eigen::Matrix3f K_rect_inv = K_rect.inverse();
+    // cv::Mat mapX = cv::Mat::zeros(imageSize.height, imageSize.width, CV_32F);
+    // cv::Mat mapY = cv::Mat::zeros(imageSize.height, imageSize.width, CV_32F);
 
-    Eigen::Matrix3f R, R_inv;
-    cv::cv2eigen(rmat, R);
-    R_inv = R.inverse();
+    // Eigen::Matrix3f K_rect;
 
-    for (int v = 0; v < imageSize.height; ++v)
-    {
-        for (int u = 0; u < imageSize.width; ++u)
-        {
-            Eigen::Vector3f xo;
-            xo << u, v, 1;
+    // if (cx == -1.0f && cy == -1.0f)
+    // {
+    //     K_rect << fx, 0, imageSize.width / 2,
+    //               0, fy, imageSize.height / 2,
+    //               0, 0, 1;
+    // }
+    // else
+    // {
+    //     K_rect << fx, 0, cx,
+    //               0, fy, cy,
+    //               0, 0, 1;
+    // }
 
-            Eigen::Vector3f uo = R_inv * K_rect_inv * xo;
+    // if (fx == -1.0f || fy == -1.0f)
+    // {
+    //     K_rect(0,0) = mParameters.mu();
+    //     K_rect(1,1) = mParameters.mv();
+    // }
 
-            Eigen::Vector2d p;
-            spaceToPlane(uo.cast<double>(), p);
+    // Eigen::Matrix3f K_rect_inv = K_rect.inverse();
 
-            mapX.at<float>(v,u) = p(0);
-            mapY.at<float>(v,u) = p(1);
-        }
-    }
+    // Eigen::Matrix3f R, R_inv;
+    // cv::cv2eigen(rmat, R);
+    // R_inv = R.inverse();
 
-    cv::convertMaps(mapX, mapY, map1, map2, CV_32FC1, false);
+    // for (int v = 0; v < imageSize.height; ++v)
+    // {
+    //     for (int u = 0; u < imageSize.width; ++u)
+    //     {
+    //         Eigen::Vector3f xo;
+    //         xo << u, v, 1;
+
+    //         Eigen::Vector3f uo = R_inv * K_rect_inv * xo;
+
+    //         Eigen::Vector2d p;
+    //         spaceToPlane(uo.cast<double>(), p);
+
+    //         mapX.at<float>(v,u) = p(0);
+    //         mapY.at<float>(v,u) = p(1);
+    //     }
+    // }
+
+    // cv::convertMaps(mapX, mapY, map1, map2, CV_32FC1, false);
 
     cv::Mat K_rect_cv;
-    cv::eigen2cv(K_rect, K_rect_cv);
+    // cv::eigen2cv(K_rect, K_rect_cv);
     return K_rect_cv;
 }
 

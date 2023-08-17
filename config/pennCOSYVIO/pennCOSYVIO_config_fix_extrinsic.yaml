@@ -1,26 +1,25 @@
 %YAML:1.0
 
 #common parameters
-imu_topic: "/IMU/imu_raw"
-image_topic: "/camera/image_raw"
-output_path: "/config/pennCOSYVIO/vins_result.txt"         # vins outputs will be wrttento vins_folder_path + output_path
+imu_topic: "/d435i/imu"
+image_topic: "/d435i/color/image_raw"
+output_path: "/config/traj/vins_result.txt"         # vins outputs will be wrttento vins_folder_path + output_path
 
-#camera calibration   # KANNALA_BRANDT , PINHOLE
+#camera calibration 
 model_type: PINHOLE
 camera_name: camera
-image_width: 752
-image_height: 480
-
+image_width: 1280
+image_height: 720
 distortion_parameters:
-   k1: -0.03671
-   k2: 0.05260
-   p1: 0.0
-   p2: 0.0
+   k1: -2.917e-01
+   k2: 8.228e-02
+   p1: 5.333e-05
+   p2: -1.578e-04
 projection_parameters:
-   fx: 445.80
-   fy: 445.15
-   cx: 371.50
-   cy: 237.33
+   fx: 908.2518920898438
+   fy: 907.7569580078125
+   cx: 629.4798583984375
+   cy: 371.7457580566406
 
 
 # Extrinsic parameter between IMU and Camera.

@@ -1,9 +1,10 @@
 %YAML:1.0
 
+
 #common parameters
 imu_topic: "/imu0"
 image_topic: "/cam0/image_raw"
-output_path: "/config/euroc/vins_result.txt"         # vins outputs will be wrttento vins_folder_path + output_path
+output_path: "/config/traj/vins_result.txt"         # vins outputs will be wrttento vins_folder_path + output_path
 
 #camera calibration 
 model_type: PINHOLE
@@ -16,10 +17,10 @@ distortion_parameters:
    p1: 5.333e-05
    p2: -1.578e-04
 projection_parameters:
-   fx: 4.616e+02
-   fy: 4.603e+02
-   cx: 3.630e+02
-   cy: 2.481e+02
+   fx: 458.654
+   fy: 457.296
+   cx: 367.215
+   cy: 248.375
 
 # Extrinsic parameter between IMU and Camera.
 estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.

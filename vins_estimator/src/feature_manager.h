@@ -74,7 +74,7 @@ public:
         lineobs = line.head<4>();
         lineobs_R = line.tail<4>();
     }
-    Vector4d lineobs;   // 每一帧上的观测
+    Vector4d lineobs;   // Observations on each frame
     Vector4d lineobs_R;
     double z;
     bool is_used;
@@ -89,8 +89,8 @@ public:
     const int feature_id;
     int start_frame;
 
-    //  feature_per_frame 是个向量容器，存着这个特征在每一帧上的观测量。
-    //                    如：feature_per_frame[0]，存的是ft在start_frame上的观测值; feature_per_frame[1]存的是start_frame+1上的观测
+    //  feature_per_frame Is a vector container that stores the observations of this feature on each frame.
+    //                    如：feature_per_frame[0]，It stores the observation value of ft on start_frame; feature_per_frame[1] stores the observation on start_frame+1
     vector<lineFeaturePerFrame> linefeature_per_frame;
 
     int used_num;
@@ -109,7 +109,7 @@ public:
     Eigen::Vector3d ti_;   // tij
     Eigen::Matrix3d Ri_;
     int removed_cnt;
-    int all_obs_cnt;    // 总共观测多少次了？
+    int all_obs_cnt;    // How many observations were made in total?
 
     int solve_flag; // 0 haven't solve yet; 1 solve succ; 2 solve fail;
 

@@ -236,6 +236,8 @@ void process()
 {
     while (true)
     {
+        ROS_INFO("in thread");
+
         //std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>> measurements;
         std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>,
                 std::pair<sensor_msgs::PointCloudConstPtr,sensor_msgs::PointCloudConstPtr> >> measurements;
@@ -254,7 +256,7 @@ void process()
             auto point_and_line_msg = measurement.second;
             auto img_msg = point_and_line_msg.first;
             auto line_msg = point_and_line_msg.second;
-            ROS_DEBUG("processing vision data with stamp %f \n", img_msg->header.stamp.toSec());
+            ROS_INFO("processing vision data with stamp %f \n", img_msg->header.stamp.toSec());
 
             TicToc t_s;
             map<int, vector<pair<int, Vector3d>>> image;
@@ -269,6 +271,7 @@ void process()
                 ROS_ASSERT(z == 1);
                 image[feature_id].emplace_back(camera_id, Vector3d(x, y, z));
             }
+            
             map<int, vector<pair<int, Vector4d>>> lines;
             for (unsigned int i = 0; i < line_msg->points.size(); i++)
             {
@@ -283,8 +286,13 @@ void process()
 //                ROS_ASSERT(z == 1);
                 lines[feature_id].emplace_back(camera_id, Vector4d(x_startpoint, y_startpoint, x_endpoint, y_endpoint));
             }
-            estimator.processImage(image,lines, img_msg->header);   // 处理image数据，这时候的image已经是特征点数据，不是原始图像了。
-  
+
+            // ROS_INFO("IN THREAD LINES: %f ", line_msg->points[0].x);
+
+            estimator.processImage(image,lines, img_msg->header);   // Processing image data, the image at this time is already feature point data, not the original image.
+
+            // ROS_INFO("AFTER PROCESSIMAGE()");
+
             double whole_t = t_s.toc();
             printStatistics(estimator, whole_t);
             std_msgs::Header header = img_msg->header;

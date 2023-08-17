@@ -126,8 +126,8 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     {
         bool completed = false;
         for (int j = 0; j < NUM_OF_CAM; j++)
-            if (j != 1 || !STEREO_TRACK)                   // 单目 或者 非双目
-                completed |= trackerData[j].updateID(i);   // 更新检测到的特征的id, 如果一个特征是新的，那就赋予新的id，如果一个特征已经有了id，那就不处理
+            if (j != 1 || !STEREO_TRACK)                   //monocular or non-binocular
+                completed |= trackerData[j].updateID(i);   // LineFeatureTracker
         if (!completed)
             break;
     }
@@ -250,6 +250,8 @@ int main(int argc, char **argv)
     ros::NodeHandle n("~");
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
     readParameters(n);
+    ROS_INFO("INSIDE FEATURE TRACKER NODE :)");
+
 
     for (int i = 0; i < NUM_OF_CAM; i++)
         trackerData[i].readIntrinsicParameter(CAM_NAMES[i]);

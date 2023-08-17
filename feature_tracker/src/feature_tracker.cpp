@@ -72,8 +72,8 @@ void FeatureTracker::addPoints()
     for (auto &p : n_pts)
     {
         forw_pts.push_back(p);
-        ids.push_back(-1);       // 特征点id, 一开始给这些新的特征点赋值-1， 会在updateID()函数里用个全局变量给他赋值
-        track_cnt.push_back(1);  // 初始化特征点的观测次数：1次
+        ids.push_back(-1);       // Feature point id, initially assign a value of -1 to these new feature points, and use a global variable in the updateID() function to assign values ​​to him
+        track_cnt.push_back(1);  // Number of observations to initialize feature points: 1 time
     }
 }
 
@@ -82,7 +82,7 @@ void FeatureTracker::readImage(const cv::Mat &_img)
     cv::Mat img;
     TicToc t_r;
 
-    if (EQUALIZE)   // 直方图均衡化
+    if (EQUALIZE)   // Histogram equalization
     {
         cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(3.0, cv::Size(8, 8));
         TicToc t_c;
@@ -108,6 +108,8 @@ void FeatureTracker::readImage(const cv::Mat &_img)
         TicToc t_o;
         vector<uchar> status;
         vector<float> err;
+
+        ROS_INFO("POINTS %i", cur_pts.size());
         // 光流跟踪的结果放在 forw_pts
         cv::calcOpticalFlowPyrLK(cur_img, forw_img, cur_pts, forw_pts, status, err, cv::Size(21, 21), 3);
 
@@ -121,14 +123,14 @@ void FeatureTracker::readImage(const cv::Mat &_img)
         reduceVector(forw_pts, status);
         reduceVector(ids, status);
         reduceVector(track_cnt, status);
-        ROS_DEBUG("temporal optical flow costs: %fms", t_o.toc());
+        ROS_INFO("temporal optical flow costs: %fms", t_o.toc());
     }
 
     if (PUB_THIS_FRAME)
     {
         rejectWithF();              // 通过计算F矩阵排除outlier
 
-        for (auto &n : track_cnt)   // 对tracking上的特征的跟踪帧数进行更新，从第i帧成功跟踪到了i+1帧，跟踪帧数+1
+        for (auto &n : track_cnt)   // Update the number of tracking frames of the feature on tracking, successfully tracked from frame i to frame i+1, and the number of tracking frames +1
             n++;
 
         ROS_DEBUG("set mask begins");
@@ -204,7 +206,7 @@ bool FeatureTracker::updateID(unsigned int i)
     if (i < ids.size())
     {
         if (ids[i] == -1)
-            ids[i] = n_id++;   // n_id 是个全局变量，给每个特征点一个独特的id
+            ids[i] = n_id++;   // n_id is a global variable, giving each feature point a unique id
         return true;
     }
     else
@@ -260,7 +262,7 @@ void FeatureTracker::showUndistortion()
     cv::Mat undist_map1_, undist_map2_;
 
     m_camera->initUndistortRectifyMap(undist_map1_,undist_map2_);
-    cv::remap(cur_img, undistortedImg, undist_map1_, undist_map2_, CV_INTER_LINEAR);
+    cv::remap(cur_img, undistortedImg, undist_map1_, undist_map2_, cv::INTER_LINEAR);
 
     cv::imshow("undist", undistortedImg);
     cv::waitKey(1);
